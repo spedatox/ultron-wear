@@ -1,0 +1,10 @@
+{
+  "_readme": "Bundled fallback only. The real schedule comes from Igor (GET /academic/schedule) and is cached in filesDir/schedule.json. This file ships EMPTY on purpose: an app that invents 'Prof. John Smith' when it has no data is worse than one that says it has no data. To test without Igor, copy docs/courses.sample.json over this file.",
+  "term": {
+    "start_date": "2026-09-21",
+    "total_weeks": 14,
+    "required_rate": 0.7,
+    "holidays": []
+  },
+  "courses": []
+}

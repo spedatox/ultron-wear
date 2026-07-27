@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name">Ultron Wear</string>
+
+    <!-- Surfaces -->
+    <string name="tile_label">Ders Programı</string>
+    <string name="complication_label">Sonraki Ders</string>
+
+    <!-- Attendance ask -->
+    <string name="channel_attendance">Yoklama</string>
+    <string name="channel_attendance_desc">Ders bitiminde devam durumu sorusu</string>
+    <string name="ask_did_you_attend">Derse girdin mi?</string>
+    <string name="answer_yes">Girdim</string>
+    <string name="answer_no">Girmedim</string>
+    <string name="answer_cancelled">İptal oldu</string>
+    <string name="answer_recorded">Kaydedildi</string>
+
+    <!-- Course reminder -->
+    <string name="channel_reminder">Ders Hatırlatma</string>
+    <string name="channel_reminder_desc">Ders başlangıcından önce hatırlatma</string>
+    <string name="reminder_title">Ders Hatırlatması</string>
+
+    <!-- Schedule screen -->
+    <string name="schedule_title">Program</string>
+    <string name="no_courses">Ders programı yok</string>
+    <string name="no_courses_hint">Igor ile eşleşince görünecek</string>
+    <string name="loading">Yükleniyor</string>
+    <string name="course_now">ŞİMDİ</string>
+    <string name="course_next">SONRAKİ</string>
+
+    <!-- Attendance screen -->
+    <string name="attendance_title">Devamsızlık</string>
+    <string name="rights_remaining">hak kaldı</string>
+    <string name="rights_none">hak kalmadı</string>
+    <string name="rights_over">hak aşıldı</string>
+    <string name="risk_failed">DEVAMSIZLIKTAN KALDIN</string>
+    <string name="risk_critical">SON HAK</string>
+    <string name="risk_warning">DİKKAT</string>
+    <string name="pending_answers">%1$d cevaplanmamış ders</string>
+    <string name="attendance_of">%1$d / %2$d saat</string>
+    <string name="week_label">HAFTA %1$d</string>
+
+    <!-- Weekdays (Rajdhani caps headers) -->
+    <string name="monday">Pazartesi</string>
+    <string name="tuesday">Salı</string>
+    <string name="wednesday">Çarşamba</string>
+    <string name="thursday">Perşembe</string>
+    <string name="friday">Cuma</string>
+    <string name="saturday">Cumartesi</string>
+    <string name="sunday">Pazar</string>
+</resources>

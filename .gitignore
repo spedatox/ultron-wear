@@ -1,0 +1,76 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle files
+.gradle/
+build/
+/app/build/
+
+# Local configuration — SDK path AND the Igor base URL / API key that
+# build.gradle.kts injects into BuildConfig. Never commit this.
+local.properties
+
+# Firebase client config. Not strictly a secret (it is client-side config, and
+# the API key in it is origin-restricted), but it names the project and is
+# regenerated per developer, so it stays out of the repo. Without it the app
+# still builds and runs — push is simply disabled. See docs/ULTRON_WEAR.md.
+app/google-services.json
+
+# IntelliJ / Android Studio
+*.iml
+.idea/
+*.ipr
+*.iws
+
+# Kotlin
+.kotlin/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Proguard folder
+proguard/
+
+# Log files
+*.log
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures folder
+captures/
+
+# External native build
+.externalNativeBuild/
+.cxx/
+
+# NDK
+obj/
+
+# Personal screenshots (not part of app assets)
+/ders programı.png
+/hata.png
+/hata1.png
+/tile_preview.png
+/app/Ekran görüntüsü*.png
+
+# Local agent settings
+.claude/settings.local.json

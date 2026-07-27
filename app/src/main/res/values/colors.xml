@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  XML mirrors of the Ultron palette, for the handful of places Android needs a
+  colour resource before Compose exists: the splash window, the manifest theme
+  and the tile/complication renderers.
+
+  These are the values ThemeEngine resolves at runtime from the single accent
+  #8a93a6 — accent_bright is mixWhite(accent, 0.28), accent_dim is
+  mixVoid(accent, 0.62). If the brand accent ever changes in Brands.kt, these
+  must be recomputed to match; everything else in the app re-hues itself.
+-->
+<resources>
+    <color name="ultron_accent">#8a93a6</color>
+    <color name="ultron_accent_bright">#abb1bf</color>
+    <color name="ultron_accent_dim">#373d45</color>
+
+    <!-- Structural, re-hued to the accent's ~221° hue -->
+    <color name="ultron_void">#04080a</color>
+    <color name="ultron_petrol">#0f1720</color>
+    <color name="ultron_text">#d3d8e2</color>
+    <color name="ultron_text_dim">#8a94a4</color>
+
+    <color name="black">#000000</color>
+</resources>
