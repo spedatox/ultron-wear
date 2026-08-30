@@ -1,28 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 
+<!-- Ultron Mark III's mark, shown directly on the splash window's own black
+     background (Theme.UltronWear.Splash) — no badge circle needed. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:width="48dp"
-        android:height="48dp"
-        android:gravity="center">
-        <shape android:shape="oval">
-            <solid android:color="#FFFFFF" />
-        </shape>
-    </item>
-    <item
-        android:width="40dp"
-        android:height="40dp"
+        android:width="44dp"
+        android:height="44dp"
         android:gravity="center">
         <vector
-            android:width="24dp"
-            android:height="24dp"
-            android:viewportWidth="24"
-            android:viewportHeight="24"
-            android:tint="#000000">
-            <!-- Academic cap (mortarboard) -->
+            android:width="44dp"
+            android:height="44dp"
+            android:viewportWidth="100"
+            android:viewportHeight="100">
             <path
-                android:fillColor="#FF000000"
-                android:pathData="M12,4 L3,9 L12,14 L21,9 Z M7.5,11.2 L7.5,13.3 C7.5,14.9 9.3,16.2 12,16.2 C14.7,16.2 16.5,14.9 16.5,13.3 L16.5,11.2 L12,13.7 Z M18.2,10.1 L18.2,14.25 L17,15.1 L17,10.8 Z"/>
+                android:fillColor="@color/ultron_accent_bright"
+                android:pathData="M7.4,0L30.58,18.35L30.58,59.32L48.08,69.7L48.36,100C43.62,96.59 26.67,84.12 19.91,79.52C13.16,74.92 9.84,73.59 7.82,72.4L7.4,0ZM92.6,0L92.18,72.4C90.28,73.49 87.55,74.35 80.8,78.95C74.04,83.55 56.5,96.49 51.64,100L52.06,69.56L69.42,59.46L69.42,18.49L92.6,0Z"/>
         </vector>
     </item>
 </layer-list>

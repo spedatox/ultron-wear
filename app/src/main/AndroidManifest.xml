@@ -78,7 +78,7 @@
             android:resource="@color/ultron_accent" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_academic_cap" />
+            android:resource="@drawable/ic_ultron_mark" />
 
         <!-- Watch-face complication: next lecture time. -->
         <service

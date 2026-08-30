@@ -5,6 +5,7 @@ import android.content.Context
 import com.spedatox.ultroncore.data.AttendanceStore
 import com.spedatox.ultroncore.data.IgorClient
 import com.spedatox.ultroncore.data.ScheduleRepository
+import com.spedatox.ultroncore.design.UltronFonts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,6 +42,9 @@ class UltronWear : Application() {
         // Both are IO-bound and independent, so they overlap.
         scope.launch { schedule.load() }
         scope.launch { attendance.load() }
+        // Parse both TTFs now, off the main thread, so the schedule list's first
+        // use of each weight never blocks a scroll frame on disk I/O.
+        scope.launch(Dispatchers.IO) { UltronFonts.preload(this@UltronWear) }
     }
 
     companion object {

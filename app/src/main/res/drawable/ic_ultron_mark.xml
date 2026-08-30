@@ -1,0 +1,12 @@
+<!-- Ultron Mark III's mark — used as the notification small icon and the Wear
+     tile icon. Single fill: Android forces notification icons to an alpha-only
+     silhouette regardless of colour, and the tile chip renders it the same way. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7.4,0L30.58,18.35L30.58,59.32L48.08,69.7L48.36,100C43.62,96.59 26.67,84.12 19.91,79.52C13.16,74.92 9.84,73.59 7.82,72.4L7.4,0ZM92.6,0L92.18,72.4C90.28,73.49 87.55,74.35 80.8,78.95C74.04,83.55 56.5,96.49 51.64,100L52.06,69.56L69.42,59.46L69.42,18.49L92.6,0Z"/>
+</vector>

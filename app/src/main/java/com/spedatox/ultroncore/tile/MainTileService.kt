@@ -59,11 +59,11 @@ class MainTileService : TileService() {
             ResourceBuilders.Resources.Builder()
                 .setVersion(RESOURCES_VERSION)
                 .addIdToImageMapping(
-                    "academic_cap",
+                    "ultron_mark",
                     ResourceBuilders.ImageResource.Builder()
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_academic_cap)
+                                .setResourceId(R.drawable.ic_ultron_mark)
                                 .build()
                         )
                         .build()

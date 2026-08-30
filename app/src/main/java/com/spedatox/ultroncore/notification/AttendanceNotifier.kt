@@ -37,7 +37,7 @@ class AttendanceNotifier(private val context: Context) {
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ASK)
-            .setSmallIcon(R.drawable.ic_academic_cap)
+            .setSmallIcon(R.drawable.ic_ultron_mark)
             .setContentTitle(ask.courseName)
             .setContentText(context.getString(R.string.ask_did_you_attend))
             .setStyle(NotificationCompat.BigTextStyle().bigText("$subtitle\n${context.getString(R.string.ask_did_you_attend)}"))

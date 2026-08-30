@@ -1,22 +1,18 @@
+<!-- Ultron Mark III's mark — ported from speda-mark6/logos/svg/ultron.svg.
+     Scaled to 0.46x around the 100x100 viewBox's own centre (the source path
+     is already centred there) to sit inside the adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!-- Academic cap main plate -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,3 L2,9 L12,15 L22,9 Z"/>
-    <!-- Inner highlight -->
-    <path
-        android:fillColor="#1E88E5"
-        android:pathData="M12,5.2 L4.8,9.5 L12,13.8 L19.2,9.5 Z"/>
-    <!-- Hanging part -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M17.2,10.2 L17.2,14.8 L15.8,15.8 L15.8,11.1 Z"/>
-    <!-- Cap base / band -->
-    <path
-        android:fillColor="#1565C0"
-        android:pathData="M6.5,11.3 L6.5,13.2 C6.5,15.3 8.8,16.8 12,16.8 C15.2,16.8 17.5,15.3 17.5,13.2 L17.5,11.3 L12,14.3 Z"/>
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <group
+        android:scaleX="0.46"
+        android:scaleY="0.46"
+        android:pivotX="50"
+        android:pivotY="50">
+        <path
+            android:fillColor="@color/ultron_accent_bright"
+            android:pathData="M7.4,0L30.58,18.35L30.58,59.32L48.08,69.7L48.36,100C43.62,96.59 26.67,84.12 19.91,79.52C13.16,74.92 9.84,73.59 7.82,72.4L7.4,0ZM92.6,0L92.18,72.4C90.28,73.49 87.55,74.35 80.8,78.95C74.04,83.55 56.5,96.49 51.64,100L52.06,69.56L69.42,59.46L69.42,18.49L92.6,0Z"/>
+    </group>
 </vector>

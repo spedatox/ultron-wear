@@ -1,11 +1,13 @@
 package com.spedatox.ultroncore.design
 
+import android.content.Context
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.core.content.res.ResourcesCompat
 import com.spedatox.ultroncore.R
 
 /**
@@ -52,6 +54,27 @@ object UltronFonts {
         Font(R.font.inter_variable, FontWeight.SemiBold),
         Font(R.font.inter_variable, FontWeight.Bold),
     )
+
+    private val fontResIds = intArrayOf(
+        R.font.rajdhani_light,
+        R.font.rajdhani_regular,
+        R.font.rajdhani_medium,
+        R.font.rajdhani_semibold,
+        R.font.rajdhani_bold,
+        R.font.inter_variable,
+    )
+
+    /**
+     * Parses every TTF once, off the main thread, and leaves the result in the
+     * platform font cache keyed by resource id. Call once, early, from
+     * [com.spedatox.ultroncore.UltronWear.onCreate] — the doc comments above
+     * have promised this happens since the original build, it just never
+     * existed, so the schedule list's first render of each weight parsed its
+     * font mid-scroll instead.
+     */
+    fun preload(context: Context) {
+        fontResIds.forEach { ResourcesCompat.getFont(context, it) }
+    }
 }
 
 object UltronType {
