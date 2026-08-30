@@ -45,18 +45,26 @@ jobs:
           EOF
 
       - name: Write google-services.json (Firebase)
-        if: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 != '' }}
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
-        run: echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
+            echo "Firebase config written."
+          else
+            echo "GOOGLE_SERVICES_JSON_BASE64 not set; building without Firebase."
+          fi
 
       - name: Smoke-test Igor reachability
-        if: ${{ secrets.IGOR_BASE_URL != '' }}
         env:
           IGOR_BASE_URL: ${{ secrets.IGOR_BASE_URL }}
           IGOR_API_KEY: ${{ secrets.IGOR_API_KEY }}
         continue-on-error: true
         run: |
+          if [ -z "$IGOR_BASE_URL" ]; then
+            echo "IGOR_BASE_URL not set; skipping reachability check."
+            exit 0
+          fi
           code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
             -H "X-API-Key: $IGOR_API_KEY" -H "Accept: application/json" \
             "${IGOR_BASE_URL%/}/academic/schedule")
