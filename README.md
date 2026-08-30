@@ -211,6 +211,30 @@ compile identically and the runtime simply finds no `FirebaseApp`.
 
 Release output is approximately 5.3 MB with R8 full mode enabled.
 
+### CI: connecting to a real Igor backend
+
+`android-ci.yml` builds a working offline debug APK with no configuration
+required. To have that same CI build connect to a real Igor instance and
+receive Firebase push, add these as **repository secrets**
+(Settings → Secrets and variables → Actions → New repository secret):
+
+| Secret | Value |
+|---|---|
+| `IGOR_BASE_URL` | e.g. `https://igor.example.com` |
+| `IGOR_API_KEY` | Igor's `X-API-Key` value |
+| `GOOGLE_SERVICES_JSON_BASE64` | `base64 -w0 app/google-services.json`, whole output |
+
+The workflow writes `IGOR_BASE_URL`/`IGOR_API_KEY` into `local.properties`
+and decodes `GOOGLE_SERVICES_JSON_BASE64` into `app/google-services.json`
+before building, then hits `GET /academic/schedule` with the configured key
+as a non-fatal reachability check (its result is printed in the step log —
+it never fails the build, since the app itself is designed to run offline).
+Omit any of the three and that piece stays unconfigured, same as a local
+build without `local.properties`.
+
+Secrets are not available to `pull_request` runs triggered from a fork, by
+GitHub's own design — only to pushes and PRs within this repository.
+
 ### Loading a schedule
 
 With a backend: `PUT /academic/schedule`.
