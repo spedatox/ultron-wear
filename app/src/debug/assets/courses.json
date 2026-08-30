@@ -1,0 +1,67 @@
+{
+  "_readme": "Development seed. Copy over app/src/main/assets/courses.json to run Ultron Wear without an Igor instance. NOTE the shape: one entry per DERS SAATİ, and every entry of the same subject shares a `code`. That grouping is what the 14-week / 70% attendance budget is computed against — two entries with the same code are two hours of one course, not two courses.",
+
+  "term": {
+    "start_date": "2026-09-21",
+    "total_weeks": 14,
+    "required_rate": 0.7,
+    "holidays": ["2026-10-29", "2026-11-10"]
+  },
+
+  "courses": [
+    {
+      "id": "cs101_mon_0900", "code": "CS101",
+      "name": "Programlamaya Giriş", "instructor": "Prof. Dr. A. Yılmaz",
+      "roomNumber": "A-201", "dayOfWeek": "MONDAY",
+      "startTime": "09:00", "endTime": "09:50"
+    },
+    {
+      "id": "cs101_mon_1000", "code": "CS101",
+      "name": "Programlamaya Giriş", "instructor": "Prof. Dr. A. Yılmaz",
+      "roomNumber": "A-201", "dayOfWeek": "MONDAY",
+      "startTime": "10:00", "endTime": "10:50"
+    },
+    {
+      "id": "cs101_mon_1100", "code": "CS101",
+      "name": "Programlamaya Giriş", "instructor": "Prof. Dr. A. Yılmaz",
+      "roomNumber": "A-201", "dayOfWeek": "MONDAY",
+      "startTime": "11:00", "endTime": "11:50"
+    },
+    {
+      "id": "math201_tue_1300", "code": "MATH201",
+      "name": "Matematik II", "instructor": "Dr. E. Demir",
+      "roomNumber": "B-105", "dayOfWeek": "TUESDAY",
+      "startTime": "13:00", "endTime": "13:50"
+    },
+    {
+      "id": "math201_tue_1400", "code": "MATH201",
+      "name": "Matematik II", "instructor": "Dr. E. Demir",
+      "roomNumber": "B-105", "dayOfWeek": "TUESDAY",
+      "startTime": "14:00", "endTime": "14:50"
+    },
+    {
+      "id": "ds102_wed_1300", "code": "DS102",
+      "name": "Veri Yapıları", "instructor": "Doç. Dr. S. Kaya",
+      "roomNumber": "LAB-220", "dayOfWeek": "WEDNESDAY",
+      "startTime": "13:00", "endTime": "13:50"
+    },
+    {
+      "id": "ds102_wed_1400", "code": "DS102",
+      "name": "Veri Yapıları", "instructor": "Doç. Dr. S. Kaya",
+      "roomNumber": "LAB-220", "dayOfWeek": "WEDNESDAY",
+      "startTime": "14:00", "endTime": "14:50"
+    },
+    {
+      "id": "stat101_fri_1000", "code": "STAT101",
+      "name": "İstatistik I", "instructor": "Dr. L. Aydın",
+      "roomNumber": "B-217", "dayOfWeek": "FRIDAY",
+      "startTime": "10:00", "endTime": "10:50"
+    },
+    {
+      "id": "stat101_fri_1100", "code": "STAT101",
+      "name": "İstatistik I", "instructor": "Dr. L. Aydın",
+      "roomNumber": "B-217", "dayOfWeek": "FRIDAY",
+      "startTime": "11:00", "endTime": "11:50"
+    }
+  ]
+}

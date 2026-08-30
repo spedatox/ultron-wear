@@ -216,6 +216,13 @@ Release output is approximately 5.3 MB with R8 full mode enabled.
 With a backend: `PUT /academic/schedule`.
 Without: copy `docs/courses.sample.json` over `app/src/main/assets/courses.json`.
 
+Debug builds do this automatically: `app/src/debug/assets/courses.json` holds
+the sample schedule and overrides the empty `main` asset for the `debug`
+build type only, via Gradle's standard source-set merging. `assembleDebug`
+therefore ships with sample courses pre-loaded, so a sideloaded debug build
+is immediately usable without an Igor instance. `assembleRelease` is
+unaffected — it still ships empty, per the invariant above.
+
 ---
 
 ## Schedule format
