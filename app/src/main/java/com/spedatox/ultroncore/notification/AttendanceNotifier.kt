@@ -54,12 +54,13 @@ class AttendanceNotifier(private val context: Context) {
             .setVibrate(VIBRATION)
             .build()
 
-        runCatching { manager.notify(ask.notificationId, notification) }
-            .onFailure {
-                // POST_NOTIFICATIONS not granted. Nothing to do here; the app
-                // requests it at launch and the question survives in the
-                // "eksik cevaplar" list either way.
-            }
+        try {
+            manager.notify(ask.notificationId, notification)
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS not granted. Nothing to do here; the app
+            // requests it at launch and the question survives in the
+            // "eksik cevaplar" list either way.
+        }
     }
 
     fun dismiss(notificationId: Int) = manager.cancel(notificationId)
