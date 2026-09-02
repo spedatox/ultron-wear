@@ -14,9 +14,14 @@
     <string name="answer_cancelled">İptal oldu</string>
     <string name="answer_recorded">Kaydedildi</string>
 
-    <!-- Course reminder -->
+    <!-- General messages pushed by Igor -->
     <string name="channel_message">Ultron Mesajları</string>
-    <string name="channel_message_desc">Igor'dan gelen bildirimler</string>
+    <!-- No apostrophe on purpose: a bare ' is invalid in an Android string
+         resource and fails mergeResources, and the escaped form is easy to
+         mangle when this file is edited by a script. -->
+    <string name="channel_message_desc">Igor tarafından gönderilen bildirimler</string>
+
+    <!-- Course reminder -->
     <string name="channel_reminder">Ders Hatırlatma</string>
     <string name="channel_reminder_desc">Ders başlangıcından önce hatırlatma</string>
     <string name="reminder_title">Ders Hatırlatması</string>
