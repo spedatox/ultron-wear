@@ -109,11 +109,20 @@ object SyncScheduler {
         )
     }
 
-    /** @param fid the Firebase Installation ID this watch is addressed by. */
-    fun registerDevice(context: Context, fid: String) {
+    /**
+     * @param fid the Firebase Installation ID this watch is addressed by.
+     * @param token the classic FCM registration token, when one could be
+     *   obtained. Igor prefers it over the fid; see [RegisterDeviceWorker].
+     */
+    fun registerDevice(context: Context, fid: String, token: String?) {
         val request = OneTimeWorkRequestBuilder<RegisterDeviceWorker>()
             .setConstraints(networked)
-            .setInputData(workDataOf(RegisterDeviceWorker.KEY_FID to fid))
+            .setInputData(
+                workDataOf(
+                    RegisterDeviceWorker.KEY_FID to fid,
+                    RegisterDeviceWorker.KEY_TOKEN to token,
+                )
+            )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(context)

@@ -38,30 +38,32 @@ object FirebaseRegistration {
             return
         }
         try {
-            // ── Why getToken() is called and its result thrown away ──────────
-            // The FID identifies this installation to Firebase Installations —
-            // it does NOT, on its own, register the installation with FCM as a
-            // messaging target. Without an FCM registration, every send to this
-            // fid comes back 404 / UNREGISTERED, which is indistinguishable
-            // from "the app was uninstalled" and caused Igor to deactivate a
-            // brand-new device seconds after it registered.
+            // ── Why the token is fetched AND kept ────────────────────────────
+            // Calling getToken() is what actually registers this installation
+            // with FCM; the FID alone only identifies it to Firebase
+            // Installations. But registering is not enough on its own: a watch
+            // that registered correctly still had every fid-addressed send come
+            // back 404 UNREGISTERED, which Igor cannot distinguish from "app
+            // uninstalled" — so it deactivated a brand-new device seconds after
+            // it appeared.
             //
-            // Calling getToken() is what performs the FCM registration. It is
-            // deprecated in firebase-messaging 25.1.0 in favour of addressing
-            // by fid, and we do address by fid — but deprecated means "do not
-            // build on this identifier", not "this no longer registers you".
-            // Until Google ships a dedicated register-only call, this is the
-            // supported way to make the installation reachable. The token
-            // itself is deliberately unused; the side effect is the point.
-            runCatching { FirebaseMessaging.getInstance().token.await() }
-                .onFailure { Log.i(TAG, "FCM registration deferred: ${it.message}") }
+            // So the token is now sent to Igor as well, and Igor targets by
+            // token when it has one. That is the decade-old path and does not
+            // depend on fid-addressing being healthy. The fid still goes up and
+            // is still the fallback, so nothing regresses if the token is
+            // unavailable — and a device row arriving with an empty token is
+            // itself the signal that this watch cannot reach FCM at all.
+            val token = runCatching { FirebaseMessaging.getInstance().token.await() }
+                .onFailure { Log.w(TAG, "FCM token unavailable: ${it.message}") }
+                .getOrNull()
 
             val fid = FirebaseInstallations.getInstance().id.await()
             if (fid.isNullOrBlank()) {
                 Log.w(TAG, "Firebase returned an empty installation id")
                 return
             }
-            SyncScheduler.registerDevice(context, fid)
+            Log.i(TAG, "Registering: fid=${fid.take(8)}… token=${if (token.isNullOrBlank()) "NONE" else "present"}")
+            SyncScheduler.registerDevice(context, fid, token)
         } catch (e: Exception) {
             // No Play services, no network, or a throttled request. All
             // recoverable — the periodic sync will try again.

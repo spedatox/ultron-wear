@@ -110,12 +110,21 @@ data class AttendanceSyncResponse(
 )
 
 /**
- * `fid`, not `token`: FCM now targets devices by Firebase Installation ID.
- * Igor stores this and puts it in the `fid` field of the HTTP v1 message.
+ * Both identifiers go up. `fid` is a genuine FCM v1 target field — probing the
+ * live endpoint confirms it, since an unknown field is rejected with 400 and
+ * `fid` is not — but in practice a correctly registered watch still had every
+ * fid-addressed send answered with 404 UNREGISTERED. `token` is the decade-old
+ * path and does not depend on fid-addressing being healthy, so Igor prefers it
+ * and keeps `fid` as the fallback.
+ *
+ * `token` is nullable because getToken() can fail (no Play services, no
+ * network). A registration arriving without one is itself the diagnosis: this
+ * watch cannot reach FCM at all.
  */
 @Serializable
 data class DeviceRegisterRequest(
     val device: String,
     val platform: String = "wear",
     val fid: String,
+    val token: String? = null,
 )

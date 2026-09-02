@@ -20,11 +20,15 @@ class RegisterDeviceWorker(context: Context, params: WorkerParameters) :
     override suspend fun doWork(): Result {
         val fid = inputData.getString(KEY_FID)
         if (fid.isNullOrBlank()) return Result.failure()
+        // May legitimately be absent: getToken() can fail on a watch with no
+        // Play services or no network. Igor falls back to fid-addressing, and
+        // records the absence.
+        val token = inputData.getString(KEY_TOKEN)
 
         val app = UltronWear.from(applicationContext)
         if (!app.igor.isConfigured) return Result.success()
 
-        return app.igor.registerDevice(SyncScheduler.deviceId(applicationContext), fid)
+        return app.igor.registerDevice(SyncScheduler.deviceId(applicationContext), fid, token)
             .fold(
                 onSuccess = {
                     Log.i(TAG, "Device registered with Igor")
@@ -39,6 +43,7 @@ class RegisterDeviceWorker(context: Context, params: WorkerParameters) :
 
     companion object {
         const val KEY_FID = "fid"
+        const val KEY_TOKEN = "token"
         private const val TAG = "RegisterDevice"
     }
 }

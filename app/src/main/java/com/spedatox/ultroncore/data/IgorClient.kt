@@ -64,8 +64,8 @@ class IgorClient(
 
     /** Hand Igor this watch's Firebase Installation ID so it can address the
      *  attendance ask. */
-    suspend fun registerDevice(device: String, fid: String): Result<Unit> {
-        val payload = DeviceRegisterRequest(device = device, fid = fid)
+    suspend fun registerDevice(device: String, fid: String, token: String?): Result<Unit> {
+        val payload = DeviceRegisterRequest(device = device, fid = fid, token = token)
         return request("POST", "/devices/register", json.encodeToString(payload)) { }
     }
 
