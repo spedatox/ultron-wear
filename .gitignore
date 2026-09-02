@@ -25,6 +25,15 @@ build/
 # build.gradle.kts injects into BuildConfig. Never commit this.
 local.properties
 
+# Signing keys. The release keystore is the one unrecoverable secret in this
+# project: Android identifies an app by its signing key, so committing it means
+# anyone can ship an "update" to your watch, and losing it means you can never
+# update an existing install again. It lives in a password manager and reaches
+# CI only as the RELEASE_KEYSTORE_BASE64 secret. See docs/RELEASING.md.
+*.jks
+*.keystore
+keystore.b64
+
 # Firebase client config. Not strictly a secret (it is client-side config, and
 # the API key in it is origin-restricted), but it names the project and is
 # regenerated per developer, so it stays out of the repo. Without it the app

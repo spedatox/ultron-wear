@@ -29,6 +29,58 @@ val localProps = Properties().apply {
 }
 fun localProp(key: String): String = localProps.getProperty(key).orEmpty()
 
+/**
+ * A build secret, resolved environment-first (CI) then local.properties (a
+ * developer machine), and `null` when genuinely absent.
+ *
+ * Deliberately no default. A signing credential that silently falls back to
+ * something is a credential you discover is wrong when the APK will not install
+ * on the watch; `null` lets the build say so instead.
+ */
+fun secret(key: String): String? =
+    System.getenv(key)?.takeIf { it.isNotBlank() }
+        ?: localProps.getProperty(key)?.takeIf { it.isNotBlank() }
+
+/**
+ * Release signing material. All four must be present or the release build is
+ * assembled unsigned — see the `signingConfig` assignment in `buildTypes` for
+ * why that is a warning rather than a hard failure.
+ */
+val releaseStoreFile = secret("RELEASE_KEYSTORE_PATH")
+val releaseStorePassword = secret("RELEASE_KEYSTORE_PASSWORD")
+val releaseKeyAlias = secret("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = secret("RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = releaseStoreFile != null && releaseStorePassword != null &&
+    releaseKeyAlias != null && releaseKeyPassword != null
+
+/**
+ * Opt-in escape hatch for *local profiling only*: `-PdebugSignRelease=true`
+ * signs the release build with the debug key so `installRelease` works on a
+ * watch without the real keystore.
+ *
+ * This exists because release is the only build worth judging performance from
+ * (see the note on the `debug` block below) and an unsigned APK cannot be
+ * installed to measure. It is off by default and must never be set in CI — a
+ * debug-signed release cannot be updated by a properly signed one later.
+ */
+val debugSignRelease = (findProperty("debugSignRelease") as String?).toBoolean()
+
+// An unsigned APK builds cleanly and then refuses to install, which is a
+// confusing way to find out a credential was missing. Say so up front — but
+// only when a release task was actually asked for, so ordinary debug builds
+// stay quiet.
+if (gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) } &&
+    !hasReleaseSigning && !debugSignRelease
+) {
+    logger.warn(
+        "\n⚠  No release signing credentials found (RELEASE_KEYSTORE_PATH, " +
+            "RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD).\n" +
+            "   The release build will be UNSIGNED and will not install on a watch.\n" +
+            "   To profile locally: ./gradlew installRelease -PdebugSignRelease=true\n" +
+            "   To cut a real release: see docs/RELEASING.md\n"
+    )
+}
+
 android {
     namespace = "com.spedatox.ultroncore"
     compileSdk = 36
@@ -39,12 +91,35 @@ android {
         // lower would drag in compat paths this app never runs.
         minSdk = 33
         targetSdk = 36
-        versionCode = 2
-        versionName = "2.0-ultron-wear"
+        // Overridable so the release workflow can stamp the build from the git
+        // tag (`-PultronVersionName=1.2.3 -PultronVersionCode=47`) without a
+        // commit. The literals below stay the source of truth for every local
+        // and CI build that is not cutting a release.
+        versionCode = (findProperty("ultronVersionCode") as String?)?.toIntOrNull() ?: 2
+        versionName = (findProperty("ultronVersionName") as String?) ?: "2.0-ultron-wear"
 
         buildConfigField("String", "IGOR_BASE_URL", "\"${localProp("IGOR_BASE_URL")}\"")
         buildConfigField("String", "IGOR_API_KEY", "\"${localProp("IGOR_API_KEY")}\"")
         buildConfigField("boolean", "HAS_FIREBASE", "$hasFirebaseConfig")
+    }
+
+    signingConfigs {
+        // Created only when every credential is present. Declaring it
+        // unconditionally would make `file(null)` explode at configuration time,
+        // which would break `./gradlew tasks` on a fresh clone.
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                // Both schemes on: v1 is irrelevant at minSdk 33 but costs
+                // nothing, v2/v3 are what Wear OS actually verifies.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
     }
 
     buildTypes {
@@ -55,6 +130,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+
+            // Unsigned is a legitimate outcome, not a bug: it keeps
+            // `assembleRelease` runnable on a fork or a PR checkout with no
+            // access to the keystore, which is exactly how CI validates that R8
+            // and lintVitalRelease still pass before a tag is ever cut. The
+            // release *workflow* fails loudly if the keystore is missing, so an
+            // unsigned artifact can never reach a GitHub Release.
+            signingConfig = when {
+                hasReleaseSigning -> signingConfigs.getByName("release")
+                debugSignRelease -> signingConfigs.getByName("debug")
+                else -> null
+            }
         }
         debug {
             // Keep the debug build honest about performance. Compose in a
