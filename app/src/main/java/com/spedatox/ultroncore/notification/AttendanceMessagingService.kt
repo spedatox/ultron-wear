@@ -1,6 +1,7 @@
 package com.spedatox.ultroncore.notification
 
 import android.util.Log
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.spedatox.ultroncore.UltronWear
@@ -71,10 +72,24 @@ class AttendanceMessagingService : FirebaseMessagingService() {
      * instead". Tokens still work today, but they are on the way out, so this
      * app addresses itself by FID from the start rather than shipping on an API
      * with an announced end.
+     *
+     * The registration token is fetched here as well, because addressing by FID
+     * turned out not to deliver in practice — see [FirebaseRegistration]. Igor
+     * targets by token when it has one and keeps the fid as its fallback.
      */
     override fun onRegistered(installationId: String) {
         Log.i(TAG, "FCM registration refreshed")
-        SyncScheduler.registerDevice(applicationContext, installationId)
+        // Not a coroutine: this is a Service callback with no scope of its own,
+        // and the Task API is already asynchronous. Registering with a null
+        // token is safe — Igor never overwrites a stored token with null, so a
+        // failed fetch leaves the previous, working one in place.
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            val token = if (task.isSuccessful) task.result else null
+            if (!task.isSuccessful) {
+                Log.w(TAG, "FCM token unavailable on re-registration: ${task.exception?.message}")
+            }
+            SyncScheduler.registerDevice(applicationContext, installationId, token)
+        }
     }
 
     private companion object {
