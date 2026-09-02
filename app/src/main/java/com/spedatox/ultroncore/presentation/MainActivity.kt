@@ -30,6 +30,7 @@ import com.spedatox.ultroncore.UltronWear
 import com.spedatox.ultroncore.design.LocalUltronPalette
 import com.spedatox.ultroncore.design.ThemeEngine
 import com.spedatox.ultroncore.design.UltronTheme
+import com.spedatox.ultroncore.sync.CatchUpScheduler
 import com.spedatox.ultroncore.sync.FallbackAskScheduler
 import com.spedatox.ultroncore.sync.SyncScheduler
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +51,11 @@ class MainActivity : ComponentActivity() {
 
         requestNotificationPermissionIfNeeded()
 
+        // The catch-up reminder taps straight through to the list of holes;
+        // landing on the schedule would cost a second tap for the one action
+        // that notification exists to prompt.
+        val startOnAttendance = intent?.getBooleanExtra(EXTRA_OPEN_ATTENDANCE, false) == true
+
         setContent {
             UltronTheme {
                 CompositionLocalProvider(LocalUltronPalette provides palette) {
@@ -59,7 +65,7 @@ class MainActivity : ComponentActivity() {
                     // blit on every single frame — pure overdraw for zero
                     // pixels of difference. See res/values/themes.xml.
                     Box(Modifier.fillMaxSize()) {
-                        UltronWearApp()
+                        UltronWearApp(startOnAttendance = startOnAttendance)
                     }
                 }
             }
@@ -70,8 +76,16 @@ class MainActivity : ComponentActivity() {
             SyncScheduler.ensurePeriodicSync(this@MainActivity)
             SyncScheduler.syncNow(this@MainActivity)
             FallbackAskScheduler.rearm(this@MainActivity)
+            // The standing net under the per-occurrence ask: that one fires
+            // once and is gone, this one keeps asking while holes remain.
+            CatchUpScheduler.ensureDaily(this@MainActivity)
             FirebaseRegistration.refresh(this@MainActivity)
         }
+    }
+
+    companion object {
+        /** Set by the catch-up reminder so tapping it lands on the holes. */
+        const val EXTRA_OPEN_ATTENDANCE = "open_attendance"
     }
 
     private fun requestNotificationPermissionIfNeeded() {
@@ -84,7 +98,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun UltronWearApp() {
+private fun UltronWearApp(startOnAttendance: Boolean) {
     val app = UltronWear.from(androidx.compose.ui.platform.LocalContext.current)
     val vm: UltronViewModel = viewModel(factory = UltronViewModel.factory(app))
     val palette = LocalUltronPalette.current
@@ -100,7 +114,7 @@ private fun UltronWearApp() {
     AppScaffold {
         SwipeDismissableNavHost(
             navController = navController,
-            startDestination = ROUTE_SCHEDULE,
+            startDestination = if (startOnAttendance) ROUTE_ATTENDANCE else ROUTE_SCHEDULE,
         ) {
             composable(ROUTE_SCHEDULE) {
                 ScreenScaffold(scrollState = scheduleListState) {

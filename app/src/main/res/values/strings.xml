@@ -14,6 +14,10 @@
     <string name="answer_cancelled">İptal oldu</string>
     <string name="answer_recorded">Kaydedildi</string>
 
+    <!-- Daily catch-up reminder -->
+    <string name="catchup_title">%1$d ders kaydedilmedi</string>
+    <string name="catchup_body_generic">Kaydetmediğin ders saatleri devamsızlık hesabında bilinmiyor olarak duruyor.</string>
+
     <!-- General messages pushed by Igor -->
     <string name="channel_message">Ultron Mesajları</string>
     <!-- No apostrophe on purpose: a bare ' is invalid in an Android string

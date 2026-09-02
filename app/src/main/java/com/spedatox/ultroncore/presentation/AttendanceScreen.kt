@@ -1,5 +1,6 @@
 package com.spedatox.ultroncore.presentation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +33,12 @@ import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.wear.compose.material3.Text
 import com.spedatox.ultroncore.R
+import com.spedatox.ultroncore.data.AttendanceCalculator
 import com.spedatox.ultroncore.data.AttendanceRisk
+import com.spedatox.ultroncore.data.AttendanceStatus
 import com.spedatox.ultroncore.data.AttendanceSummary
 import com.spedatox.ultroncore.design.GlassRadius
+import com.spedatox.ultroncore.design.GlassRadiusSmall
 import com.spedatox.ultroncore.design.UltronPalette
 import com.spedatox.ultroncore.design.UltronType
 import com.spedatox.ultroncore.design.ultronGlass
@@ -61,8 +65,9 @@ fun AttendanceScreen(
     listState: LazyListState,
 ) {
     val summaries by vm.summaries.collectAsStateWithLifecycle()
+    val pending by vm.pending.collectAsStateWithLifecycle()
 
-    if (summaries.isEmpty()) {
+    if (summaries.isEmpty() && pending.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 text = stringResource(R.string.no_courses),
@@ -100,9 +105,105 @@ fun AttendanceScreen(
                 SectionLabel("%70 zorunlu · 14 hafta", palette)
             }
         }
+        if (pending.isNotEmpty()) {
+            item(key = "pending_label") {
+                SectionLabel("${pending.size} ders kaydedilmedi", palette)
+            }
+            items(count = pending.size, key = { i -> pending[i].key }) { index ->
+                val occ = pending[index]
+                PendingCard(
+                    occurrence = occ,
+                    palette = palette,
+                    onAnswer = { status -> vm.answer(occ, status) },
+                )
+            }
+        }
+
         items(count = ordered.size, key = { i -> ordered[i].courseCode }) { index ->
             AttendanceCard(summary = ordered[index], palette = palette)
         }
+    }
+}
+
+/**
+ * One hole in the ledger, answerable in place.
+ *
+ * Three taps' worth of buttons rather than a tap-through to a prompt screen:
+ * the whole reason these accumulate is that answering was a notification you had
+ * to catch at the right moment. If clearing a backlog costs a screen transition
+ * per entry, the backlog does not get cleared.
+ *
+ * Amber, not red — an unanswered hour is missing information, not a failure. Red
+ * is reserved for a course you have actually lost.
+ */
+@Composable
+private fun PendingCard(
+    occurrence: AttendanceCalculator.Occurrence,
+    palette: UltronPalette,
+    onAnswer: (AttendanceStatus) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .ultronGlass(
+                palette = palette,
+                radius = GlassRadius,
+                accentRim = palette.amber.copy(alpha = 0.45f),
+                accentEdge = palette.amber,
+            )
+            .padding(start = 13.dp, end = 11.dp, top = 9.dp, bottom = 9.dp),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(
+                text = occurrence.course.name,
+                style = UltronType.title,
+                color = palette.text,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "${occurrence.date.dayOfMonth}.${occurrence.date.monthValue} · ${occurrence.course.timeString}",
+                style = UltronType.readout,
+                color = palette.textFaint,
+            )
+
+            Spacer(Modifier.height(7.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                AnswerButton("VARDIM", palette.green, palette, Modifier.weight(1f)) {
+                    onAnswer(AttendanceStatus.ATTENDED)
+                }
+                AnswerButton("YOK", palette.red, palette, Modifier.weight(1f)) {
+                    onAnswer(AttendanceStatus.ABSENT)
+                }
+                AnswerButton("İPTAL", palette.textFaint, palette, Modifier.weight(1f)) {
+                    onAnswer(AttendanceStatus.CANCELLED)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnswerButton(
+    label: String,
+    accent: Color,
+    palette: UltronPalette,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .ultronGlass(palette, radius = GlassRadiusSmall, accentRim = accent.copy(alpha = 0.5f))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = label, style = UltronType.label, color = accent)
     }
 }
 

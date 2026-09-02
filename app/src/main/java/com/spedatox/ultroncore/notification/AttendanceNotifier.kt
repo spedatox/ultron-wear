@@ -11,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.spedatox.ultroncore.R
 import com.spedatox.ultroncore.data.AttendanceStatus
 import com.spedatox.ultroncore.presentation.AttendanceActivity
+import com.spedatox.ultroncore.presentation.MainActivity
 
 /**
  * Puts the question on the wrist.
@@ -65,6 +66,63 @@ class AttendanceNotifier(private val context: Context) {
 
     fun dismiss(notificationId: Int) = manager.cancel(notificationId)
 
+    /**
+     * The standing reminder that the ledger has holes in it.
+     *
+     * Distinct from [ask]: that fires once per occurrence and is gone. This one
+     * exists precisely because a single notification can be missed, and an hour
+     * that nobody ever answers again does not stay neutral — it sits in the
+     * maths as an unknown until the term ends and then reads as an absence you
+     * cannot appeal.
+     *
+     * [headline] carries the consequence rather than the count, because "3 ders
+     * kaydedilmedi" is a chore and "MAT101: 2 hak kaldı" is a reason. A reminder
+     * that does not say what it costs gets swiped away.
+     *
+     * One fixed notification id: this replaces yesterday's reminder instead of
+     * stacking a new one every evening.
+     */
+    fun catchUp(count: Int, headline: String?) {
+        val title = context.getString(R.string.catchup_title, count)
+        val body = headline ?: context.getString(R.string.catchup_body_generic)
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ASK)
+            .setSmallIcon(R.drawable.ic_ultron_mark)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setContentIntent(openCatchUp())
+            .setVibrate(VIBRATION)
+            .build()
+
+        try {
+            manager.notify(CATCHUP_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS not granted; the list is still in the app.
+        }
+    }
+
+    fun dismissCatchUp() = manager.cancel(CATCHUP_NOTIFICATION_ID)
+
+    /** Opens straight onto the attendance list, where the holes are answerable
+     *  in place. Landing on the schedule instead would cost a second tap for
+     *  the one action this notification exists to prompt. */
+    private fun openCatchUp(): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra(MainActivity.EXTRA_OPEN_ATTENDANCE, true)
+        }
+        return PendingIntent.getActivity(
+            context,
+            CATCHUP_NOTIFICATION_ID,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
     private fun action(
         ask: AttendanceAsk,
         status: AttendanceStatus,
@@ -117,6 +175,9 @@ class AttendanceNotifier(private val context: Context) {
 
     private companion object {
         const val CHANNEL_ASK = "attendance_ask"
+
+        /** Fixed, so each evening's reminder replaces the last. */
+        const val CATCHUP_NOTIFICATION_ID = 10_001
 
         /** Short double-tap. Long buzz patterns on a watch are punishment, and
          *  this fires after every single teaching hour. */

@@ -9,10 +9,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spedatox.ultroncore.UltronWear
 import com.spedatox.ultroncore.data.AttendanceCalculator
+import com.spedatox.ultroncore.data.AttendanceStatus
 import com.spedatox.ultroncore.data.AttendanceSummary
 import com.spedatox.ultroncore.data.Course
 import com.spedatox.ultroncore.data.Term
+import com.spedatox.ultroncore.notification.AttendanceAsk
+import com.spedatox.ultroncore.notification.AttendanceNotifier
+import com.spedatox.ultroncore.sync.FallbackAskScheduler
+import com.spedatox.ultroncore.sync.SyncScheduler
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -104,11 +110,58 @@ class UltronViewModel(private val app: UltronWear) : ViewModel() {
             AttendanceCalculator.summarise(c, t, r, n)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Past teaching hours with no answer — the catch-up count. */
-    val unansweredCount: StateFlow<Int> =
+    /**
+     * Past teaching hours with no answer — the ledger's holes.
+     *
+     * Most recent first: the class you forgot an hour ago is the one you can
+     * still answer honestly, and a list that buries it under six weeks of older
+     * gaps is a list you stop opening.
+     *
+     * This is the whole point of the catch-up screen. The per-occurrence ask
+     * fires once, fifteen minutes after the bell; miss or dismiss that single
+     * notification and nothing ever asked again, so the hour silently stayed
+     * unanswered and quietly rotted the attendance maths.
+     */
+    val pending: StateFlow<List<AttendanceCalculator.Occurrence>> =
         combine(courses, term, app.attendance.records, _now) { c, t, r, n ->
-            AttendanceCalculator.unanswered(c, t, r, n).size
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+            AttendanceCalculator.unanswered(c, t, r, n).sortedByDescending { it.endsAt }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Derived from [pending] rather than recomputed, so the badge and the list
+     *  can never disagree about how many holes there are. */
+    val unansweredCount: StateFlow<Int> =
+        pending.map { it.size }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /**
+     * Record one answer and clean up everything that was still chasing it.
+     *
+     * All four steps matter: without the cancel, the local fallback still fires
+     * for an hour already answered; without the dismiss, an open notification
+     * for it lingers on the watch face; without the sync, Igor keeps counting
+     * the hour as a hole and keeps nagging about it.
+     */
+    fun answer(occurrence: AttendanceCalculator.Occurrence, status: AttendanceStatus) {
+        viewModelScope.launch {
+            app.attendance.record(
+                slotId = occurrence.course.id,
+                courseCode = occurrence.course.code,
+                date = occurrence.date,
+                status = status,
+            )
+            val ask = AttendanceAsk(
+                slotId = occurrence.course.id,
+                courseCode = occurrence.course.code,
+                courseName = occurrence.course.name,
+                date = occurrence.date,
+                timeLabel = occurrence.course.timeString,
+                room = occurrence.course.roomNumber,
+            )
+            FallbackAskScheduler.cancel(app, ask)
+            AttendanceNotifier(app).dismiss(ask.notificationId)
+            SyncScheduler.syncNow(app)
+        }
+    }
 
     /**
      * Which slot is running right now, and which is up next.
