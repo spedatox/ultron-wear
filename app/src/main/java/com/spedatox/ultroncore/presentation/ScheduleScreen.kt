@@ -20,6 +20,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.foundation.rememberActiveFocusRequester
+import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
+import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.wear.compose.material3.Text
 import com.spedatox.ultroncore.R
 import com.spedatox.ultroncore.design.GlassRadiusSmall
@@ -75,7 +78,18 @@ fun ScheduleScreen(
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            // Rotary is NOT free here. ScreenScaffold wires the bezel
+            // automatically for ScalingLazyColumn, TransformingLazyColumn and
+            // Picker — and for nothing else. Dropping SLC for the fisheye's
+            // frame cost therefore also dropped bezel scrolling, which is the
+            // primary way this watch is driven. Wiring it back explicitly is
+            // the price of the flat list, and it is worth paying.
+            .rotaryScrollable(
+                RotaryScrollableDefaults.behavior(listState),
+                focusRequester = rememberActiveFocusRequester(),
+            ),
         // A flat list does not self-centre the way SLC did, so the vertical
         // padding has to keep the first and last card clear of the round bezel
         // itself. Tune here if a card corner ever kisses the edge.

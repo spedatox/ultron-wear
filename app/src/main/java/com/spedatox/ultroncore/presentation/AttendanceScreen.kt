@@ -27,6 +27,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.foundation.rememberActiveFocusRequester
+import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
+import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.wear.compose.material3.Text
 import com.spedatox.ultroncore.R
 import com.spedatox.ultroncore.data.AttendanceRisk
@@ -76,7 +79,14 @@ fun AttendanceScreen(
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            // See ScheduleScreen: a plain LazyColumn gets no bezel support from
+            // ScreenScaffold, so it has to be connected by hand.
+            .rotaryScrollable(
+                RotaryScrollableDefaults.behavior(listState),
+                focusRequester = rememberActiveFocusRequester(),
+            ),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
