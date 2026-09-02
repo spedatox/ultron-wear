@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.installations.FirebaseInstallations
+import com.google.firebase.messaging.FirebaseMessaging
 import com.spedatox.ultroncore.BuildConfig
 import com.spedatox.ultroncore.sync.SyncScheduler
 import kotlinx.coroutines.tasks.await
@@ -37,6 +38,24 @@ object FirebaseRegistration {
             return
         }
         try {
+            // ── Why getToken() is called and its result thrown away ──────────
+            // The FID identifies this installation to Firebase Installations —
+            // it does NOT, on its own, register the installation with FCM as a
+            // messaging target. Without an FCM registration, every send to this
+            // fid comes back 404 / UNREGISTERED, which is indistinguishable
+            // from "the app was uninstalled" and caused Igor to deactivate a
+            // brand-new device seconds after it registered.
+            //
+            // Calling getToken() is what performs the FCM registration. It is
+            // deprecated in firebase-messaging 25.1.0 in favour of addressing
+            // by fid, and we do address by fid — but deprecated means "do not
+            // build on this identifier", not "this no longer registers you".
+            // Until Google ships a dedicated register-only call, this is the
+            // supported way to make the installation reachable. The token
+            // itself is deliberately unused; the side effect is the point.
+            runCatching { FirebaseMessaging.getInstance().token.await() }
+                .onFailure { Log.i(TAG, "FCM registration deferred: ${it.message}") }
+
             val fid = FirebaseInstallations.getInstance().id.await()
             if (fid.isNullOrBlank()) {
                 Log.w(TAG, "Firebase returned an empty installation id")
