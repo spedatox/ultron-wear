@@ -2,14 +2,21 @@
 #  Release — build a SIGNED release APK + AAB and publish them to a GitHub
 #  Release.
 #
-#  Trigger: pushing a tag that looks like `v1.2.3`.
+#  Trigger: ANY push to main. There is nothing to remember and nothing to run
+#  by hand — code on main is code that shipped.
 #
-#      git tag v2.1.0 && git push origin v2.1.0
+#    · push to main   -> patch bump off the highest existing tag (v2.1.0 -> v2.1.1)
+#    · push a tag     -> that exact version, for a minor or major bump
+#                        git tag v2.2.0 && git push origin v2.2.0
+#    · [skip release] -> anywhere in the commit message, to push without shipping
 #
-#  The tag is the single source of truth for the version: `v2.1.0` becomes
-#  versionName `2.1.0`, and versionCode is derived from it as
+#  Doc-only changes never ship; see paths-ignore below.
+#
+#  The version is the single source of truth for versionCode, derived as
 #  major*10000 + minor*100 + patch (2.1.0 -> 20100), which is monotonic as long
-#  as tags are. Nothing needs to be committed to cut a release.
+#  as versions are. Nothing needs to be committed to cut a release; on a main
+#  push the tag is created by the release step at the exact commit that was
+#  built and signature-verified.
 #
 #  This workflow REFUSES to run unsigned. An unsigned APK cannot be installed on
 #  a watch, so publishing one would produce a release that looks fine and is
@@ -18,13 +25,24 @@
 name: Release
 
 on:
+  # Every push to main ships. The version is the latest tag with its patch
+  # bumped, and the tag itself is created by the release step — so the normal
+  # path is "push code, get a release", with nothing to remember.
   push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - ".gitignore"
+      - ".github/workflows/android-ci.yml"
+    # Pushing a tag still works, and is how you cut a minor or major: the tag
+    # you name wins over the auto-bump.
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to build (e.g. v2.1.0)"
-        required: true
+        description: "Version to build, e.g. v2.2.0 (blank = bump patch)"
+        required: false
         type: string
 
 concurrency:
@@ -40,6 +58,12 @@ jobs:
     name: Build signed release & publish
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Escape hatch for a main push that should not ship — put [skip release]
+    # anywhere in the commit message. Tag pushes ignore this by design: an
+    # explicit tag is always an explicit request for a release.
+    if: >-
+      github.ref_type == 'tag' ||
+      !contains(github.event.head_commit.message, '[skip release]')
 
     steps:
       - name: Checkout
@@ -73,13 +97,43 @@ jobs:
           fi
           echo "All four signing secrets present."
 
-      - name: Derive version from tag
+      - name: Resolve version
         id: version
         run: |
-          TAG="${{ inputs.tag || github.ref_name }}"
+          git fetch --tags --force --quiet
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            # A tag was pushed deliberately — it wins.
+            TAG="${{ github.ref_name }}"
+            echo "Source: pushed tag"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+            echo "Source: manual dispatch"
+          else
+            # Push to main: bump the patch of the highest existing version tag.
+            # sort -V so v2.10.0 sorts above v2.9.0, which lexical sort gets
+            # wrong and would silently start re-releasing old versions.
+            LATEST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              TAG="v0.1.0"
+              echo "Source: no existing tags, seeding $TAG"
+            else
+              B="${LATEST#v}"
+              MA=$(echo "$B" | cut -d. -f1)
+              MI=$(echo "$B" | cut -d. -f2)
+              PA=$(echo "$B" | cut -d. -f3)
+              TAG="v${MA}.${MI}.$((PA + 1))"
+              echo "Source: auto-bump from $LATEST"
+            fi
+          fi
+
           echo "Tag: $TAG"
           if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Tag '$TAG' is not of the form vMAJOR.MINOR.PATCH (e.g. v2.1.0)."
+            echo "::error::'$TAG' is not of the form vMAJOR.MINOR.PATCH (e.g. v2.1.0)."
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && [ "${{ github.ref_type }}" != "tag" ]; then
+            echo "::error::Tag $TAG already exists. Push a tag explicitly to rebuild it."
             exit 1
           fi
           NAME="${TAG#v}"
@@ -213,6 +267,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          # On a main push the tag does not exist yet; the action creates it
+          # here, pinned to the exact commit that was built and verified.
+          target_commitish: ${{ github.sha }}
           name: Ultron Wear ${{ steps.version.outputs.name }}
           generate_release_notes: true
           fail_on_unmatched_files: true

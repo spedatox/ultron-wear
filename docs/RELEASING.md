@@ -1,14 +1,19 @@
 # Releasing Ultron Wear
 
-Cutting a release is one command:
+Releases are automatic. **Push to `main` and you get one.**
 
-```bash
-git tag v2.1.0 && git push origin v2.1.0
-```
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) builds a **signed** release
+APK and AAB and publishes them to a GitHub Release, tagging the exact commit it built.
 
-That triggers [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds a
-**signed** release APK and AAB and publishes them to a GitHub Release. Nothing needs to be
-committed — the tag is the version.
+| You do | You get |
+| --- | --- |
+| `git push` to `main` | patch bump off the highest tag — `v2.1.0` becomes `v2.1.1` |
+| `git tag v2.2.0 && git push origin v2.2.0` | exactly `v2.2.0` — how you cut a minor or major |
+| `[skip release]` in the commit message | pushed, not shipped |
+| edit only `*.md` / `docs/` / `.gitignore` | nothing ships |
+
+A tag you push always wins over the auto-bump, and always ships — `[skip release]` does not
+apply to it, because an explicit tag is an explicit request.
 
 One-time setup is below. You only do it once, and it involves a private key that must never
 reach this repository.
