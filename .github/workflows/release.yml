@@ -8,7 +8,7 @@
 #    · push to main   -> patch bump off the highest existing tag (v2.1.0 -> v2.1.1)
 #    · push a tag     -> that exact version, for a minor or major bump
 #                        git tag v2.2.0 && git push origin v2.2.0
-#    · [skip release] -> anywhere in the commit message, to push without shipping
+#    · [skip release] -> in the commit SUBJECT line, to push without shipping
 #
 #  Doc-only changes never ship; see paths-ignore below.
 #
@@ -54,16 +54,48 @@ permissions:
   contents: write
 
 jobs:
+  # ── Should this push ship? ───────────────────────────────────────────────
+  # A separate job purely so the decision can be made in shell rather than in a
+  # GitHub expression. `contains(github.event.head_commit.message, ...)` reads
+  # the WHOLE message, body included — so the very commit that documented the
+  # skip token contained it, and skipped its own release. Only the subject line
+  # counts, and expressions cannot split a string.
+  gate:
+    name: Decide whether to ship
+    runs-on: ubuntu-latest
+    outputs:
+      ship: ${{ steps.decide.outputs.ship }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - id: decide
+        run: |
+          # An explicit tag is an explicit request; it always ships.
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "ship=true" >> "$GITHUB_OUTPUT"
+            echo "Tag push - shipping."
+            exit 0
+          fi
+          SUBJECT=$(git log -1 --format=%s)
+          echo "Subject: $SUBJECT"
+          case "$SUBJECT" in
+            *"[skip release]"*)
+              echo "ship=false" >> "$GITHUB_OUTPUT"
+              echo "Subject carries the skip token - not shipping."
+              ;;
+            *)
+              echo "ship=true" >> "$GITHUB_OUTPUT"
+              echo "Shipping."
+              ;;
+          esac
+
   release:
     name: Build signed release & publish
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # Escape hatch for a main push that should not ship — put [skip release]
-    # anywhere in the commit message. Tag pushes ignore this by design: an
-    # explicit tag is always an explicit request for a release.
-    if: >-
-      github.ref_type == 'tag' ||
-      !contains(github.event.head_commit.message, '[skip release]')
+    needs: gate
+    if: needs.gate.outputs.ship == 'true'
 
     steps:
       - name: Checkout
