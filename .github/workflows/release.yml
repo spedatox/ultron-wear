@@ -1,0 +1,238 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Release — build a SIGNED release APK + AAB and publish them to a GitHub
+#  Release.
+#
+#  Trigger: pushing a tag that looks like `v1.2.3`.
+#
+#      git tag v2.1.0 && git push origin v2.1.0
+#
+#  The tag is the single source of truth for the version: `v2.1.0` becomes
+#  versionName `2.1.0`, and versionCode is derived from it as
+#  major*10000 + minor*100 + patch (2.1.0 -> 20100), which is monotonic as long
+#  as tags are. Nothing needs to be committed to cut a release.
+#
+#  This workflow REFUSES to run unsigned. An unsigned APK cannot be installed on
+#  a watch, so publishing one would produce a release that looks fine and is
+#  useless; the preflight step below fails the job instead.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (e.g. v2.1.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Needed to create the GitHub Release and upload assets to it.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build signed release & publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      # ── Preflight ───────────────────────────────────────────────────────
+      # Fail before spending 15 minutes on a build whose output we would have
+      # to throw away.
+      - name: Verify signing secrets are present
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          # Explicit `if` blocks rather than `[ ... ] && x`: this step runs under
+          # `bash -e`, where a bare failing AND-list can abort the step and turn
+          # a clear "secret missing" message into a silent exit.
+          missing=""
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ];   then missing="$missing RELEASE_KEYSTORE_BASE64"; fi
+          if [ -z "$RELEASE_KEYSTORE_PASSWORD" ]; then missing="$missing RELEASE_KEYSTORE_PASSWORD"; fi
+          if [ -z "$RELEASE_KEY_ALIAS" ];         then missing="$missing RELEASE_KEY_ALIAS"; fi
+          if [ -z "$RELEASE_KEY_PASSWORD" ];      then missing="$missing RELEASE_KEY_PASSWORD"; fi
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing"
+            echo "A release must be signed. See docs/RELEASING.md for how to create the keystore and set these."
+            exit 1
+          fi
+          echo "All four signing secrets present."
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "Tag: $TAG"
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag '$TAG' is not of the form vMAJOR.MINOR.PATCH (e.g. v2.1.0)."
+            exit 1
+          fi
+          NAME="${TAG#v}"
+          MAJOR=$(echo "$NAME" | cut -d. -f1)
+          MINOR=$(echo "$NAME" | cut -d. -f2)
+          PATCH=$(echo "$NAME" | cut -d. -f3)
+          CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "tag=$TAG"          >> "$GITHUB_OUTPUT"
+          echo "name=$NAME"        >> "$GITHUB_OUTPUT"
+          echo "code=$CODE"        >> "$GITHUB_OUTPUT"
+          echo "versionName=$NAME, versionCode=$CODE"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # ── Build config that never reaches source control ──────────────────
+      - name: Write local.properties (Igor config)
+        env:
+          IGOR_BASE_URL: ${{ secrets.IGOR_BASE_URL }}
+          IGOR_API_KEY: ${{ secrets.IGOR_API_KEY }}
+        run: |
+          cat >> local.properties <<EOF
+          IGOR_BASE_URL=$IGOR_BASE_URL
+          IGOR_API_KEY=$IGOR_API_KEY
+          EOF
+
+      - name: Write google-services.json (Firebase)
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
+            echo "Firebase config written; FCM push will be live in this build."
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 not set. Releasing WITHOUT Firebase — attendance push notifications will not work in this build."
+          fi
+
+      - name: Decode keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          # Outside the workspace so it can never be picked up by a build task
+          # or swept into an artifact upload glob.
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/signing/release.jks"
+          if [ ! -s "$RUNNER_TEMP/signing/release.jks" ]; then
+            echo "::error::Decoded keystore is empty — RELEASE_KEYSTORE_BASE64 is probably not valid base64."
+            exit 1
+          fi
+          echo "Keystore decoded ($(stat -c%s "$RUNNER_TEMP/signing/release.jks") bytes)."
+
+      # ── Gate: the release path must be clean before we publish ──────────
+      # lintVitalRelease and R8 only run on the release variant, so these are
+      # failures a debug build cannot surface.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Lint (release-vital)
+        run: ./gradlew lintVitalRelease --no-daemon
+
+      # ── The actual release build ────────────────────────────────────────
+      - name: Assemble signed APK & AAB
+        env:
+          RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/signing/release.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease bundleRelease --no-daemon \
+            -PultronVersionName="${{ steps.version.outputs.name }}" \
+            -PultronVersionCode="${{ steps.version.outputs.code }}"
+
+      # ── Prove it is actually signed before publishing ───────────────────
+      - name: Verify APK signature
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::No release APK was produced."
+            exit 1
+          fi
+          echo "APK: $APK"
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "Using build-tools: $BUILD_TOOLS"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
+          echo "Signature verified."
+
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          VERSION="${{ steps.version.outputs.name }}"
+          mkdir -p dist
+          cp "$(find app/build/outputs/apk/release   -name '*.apk' | head -1)" "dist/ultron-wear-${VERSION}.apk"
+          cp "$(find app/build/outputs/bundle/release -name '*.aab' | head -1)" "dist/ultron-wear-${VERSION}.aab"
+          # A checksum file, so a sideloaded APK can be verified on the far end.
+          ( cd dist && sha256sum ./*.apk ./*.aab > SHA256SUMS.txt )
+          ls -lh dist
+          cat dist/SHA256SUMS.txt
+
+      # Retained independently of the Release, so a deleted or re-cut release
+      # never loses the exact bits that were tested.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultron-wear-${{ steps.version.outputs.name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload mapping file
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-mapping-${{ steps.version.outputs.name }}
+          path: app/build/outputs/mapping/release/
+          if-no-files-found: warn
+          # The mapping is the only way to read a stack trace from an R8-minified
+          # build. Losing it makes every future crash report unreadable, so it
+          # outlives the artifacts themselves.
+          retention-days: 365
+
+      # ── Publish ─────────────────────────────────────────────────────────
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Ultron Wear ${{ steps.version.outputs.name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            **Ultron Wear ${{ steps.version.outputs.name }}** · versionCode `${{ steps.version.outputs.code }}`
+
+            Sideload onto a Galaxy Watch 6 Classic:
+
+            ```
+            adb connect <watch-ip>:5555
+            adb install -r ultron-wear-${{ steps.version.outputs.name }}.apk
+            ```
+
+            `ultron-wear-${{ steps.version.outputs.name }}.aab` is the Play-format
+            bundle. Verify downloads against `SHA256SUMS.txt`.
+          files: |
+            dist/ultron-wear-${{ steps.version.outputs.name }}.apk
+            dist/ultron-wear-${{ steps.version.outputs.name }}.aab
+            dist/SHA256SUMS.txt
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/signing"

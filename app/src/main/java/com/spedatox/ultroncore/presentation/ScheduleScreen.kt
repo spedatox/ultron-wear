@@ -1,6 +1,8 @@
 package com.spedatox.ultroncore.presentation
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +20,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.ScalingLazyListState
-import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Text
 import com.spedatox.ultroncore.R
 import com.spedatox.ultroncore.design.GlassRadiusSmall
@@ -39,12 +38,27 @@ import com.spedatox.ultroncore.presentation.components.UltronHeader
  * no `remember` keyed on the clock. The view model hands down an active id and a
  * next id; each card compares its own id and gets a Boolean. That is what keeps
  * a minute tick from invalidating thirteen cards. See [UltronViewModel].
+ *
+ * ── Why LazyColumn and not ScalingLazyColumn ────────────────────────────────
+ * SLC's fisheye applies a per-item `graphicsLayer` with both a scale and an
+ * alpha, recomputed for every visible item on every frame of a scroll. An alpha
+ * below 1 makes that layer composite offscreen, so each of the ~5 cards on
+ * screen during a fling was being rendered into its own buffer and blitted back
+ * — on a Mali-G68 MP2 that is the frame budget, spent on an effect this design
+ * never asked for. Google's own guidance says to use LazyColumn "if scaling /
+ * fisheye functionality is not required ... to avoid any overhead of measuring
+ * and calculating scaling and transparency effects for the content items".
+ *
+ * Ultron's design language is a flat HUD of glass plates with hard rims; the
+ * fisheye actively fought it. Rotary/bezel scrolling and the scroll indicator
+ * are unaffected — `ScreenScaffold` has a `LazyListState` overload and drives
+ * both from it exactly as it did from the SLC state.
  */
 @Composable
 fun ScheduleScreen(
     vm: UltronViewModel,
     palette: UltronPalette,
-    listState: ScalingLazyListState,
+    listState: LazyListState,
     onCourseClick: (courseId: String) -> Unit,
     onAttendanceClick: () -> Unit,
 ) {
@@ -59,10 +73,13 @@ fun ScheduleScreen(
         return
     }
 
-    ScalingLazyColumn(
+    LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 28.dp),
+        // A flat list does not self-centre the way SLC did, so the vertical
+        // padding has to keep the first and last card clear of the round bezel
+        // itself. Tune here if a card corner ever kisses the edge.
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         item(key = "header") {
@@ -87,10 +104,10 @@ fun ScheduleScreen(
                     palette = palette,
                 )
             }
-            // Indexed rather than the list overload: ScalingLazyColumn's `items`
-            // takes a count, and a stable `key` per row is what lets the list
-            // keep a card's state and slot across recompositions instead of
-            // rebuilding it when the schedule flow re-emits.
+            // Indexed rather than the list overload: a stable `key` per row is
+            // what lets the list keep a card's state and slot across
+            // recompositions instead of rebuilding it when the schedule flow
+            // re-emits.
             items(
                 count = section.courses.size,
                 key = { i -> section.courses[i].id },

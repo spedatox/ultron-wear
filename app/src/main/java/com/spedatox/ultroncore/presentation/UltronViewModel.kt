@@ -1,6 +1,9 @@
 package com.spedatox.ultroncore.presentation
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -51,6 +54,23 @@ class UltronViewModel(private val app: UltronWear) : ViewModel() {
     private val _now = MutableStateFlow(LocalDateTime.now())
     val now: StateFlow<LocalDateTime> = _now
 
+    /**
+     * A snapshot-state mirror of [_now], and the reason the progress rail moves
+     * at all.
+     *
+     * [progressOf] is called from the draw phase, and Compose's snapshot system
+     * only tracks reads of snapshot state — a plain `StateFlow.value` read is
+     * invisible to it. Reading `_now.value` there therefore registered no
+     * observer, so nothing ever invalidated the draw and the bar sat frozen at
+     * whatever fraction it happened to be composed at.
+     *
+     * Backing the same instant with a `mutableStateOf` fixes it without giving
+     * up the optimisation: a draw-phase read of snapshot state invalidates only
+     * the draw, so the rail repaints on the tick while composition and layout
+     * are still skipped entirely.
+     */
+    private var nowSnapshot by mutableStateOf(LocalDateTime.now())
+
     init {
         viewModelScope.launch {
             while (true) {
@@ -59,7 +79,9 @@ class UltronViewModel(private val app: UltronWear) : ViewModel() {
                 // "ŞİMDİ" badge flips when the clock does, not up to 59s late.
                 val msToNextMinute = 60_000L - (t.second * 1_000L + t.nano / 1_000_000L)
                 delay(msToNextMinute.coerceIn(1_000L, 60_000L))
-                _now.value = LocalDateTime.now()
+                val next = LocalDateTime.now()
+                _now.value = next
+                nowSnapshot = next
             }
         }
     }
@@ -107,12 +129,13 @@ class UltronViewModel(private val app: UltronWear) : ViewModel() {
     /**
      * Progress through the running lecture, 0..1.
      *
-     * Called from the draw phase, so it must be cheap and must NOT be a
-     * `State<Float>` — the whole point is that reading it does not subscribe a
-     * composable to recomposition.
+     * Called from the draw phase, so it must be cheap. It reads [nowSnapshot]
+     * rather than `_now.value` deliberately: the snapshot read is what lets the
+     * draw phase observe the tick, while still not subscribing any *composable*
+     * to recomposition. See [nowSnapshot].
      */
     fun progressOf(course: Course): Float {
-        val n = _now.value
+        val n = nowSnapshot
         if (n.toLocalDate().dayOfWeek != course.dayOfWeek) return 0f
         val total = course.endTime.toSecondOfDay() - course.startTime.toSecondOfDay()
         if (total <= 0) return 0f

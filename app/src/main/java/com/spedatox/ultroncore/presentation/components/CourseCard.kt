@@ -25,7 +25,6 @@ import com.spedatox.ultroncore.data.Course
 import com.spedatox.ultroncore.design.GlassRadius
 import com.spedatox.ultroncore.design.UltronPalette
 import com.spedatox.ultroncore.design.UltronType
-import com.spedatox.ultroncore.design.accentEdge
 import com.spedatox.ultroncore.design.ultronGlass
 
 /** What a card is currently doing. Ordered by visual priority. */
@@ -68,8 +67,8 @@ fun CourseCard(
                 radius = GlassRadius,
                 active = state == SlotState.ACTIVE,
                 accentRim = if (state == SlotState.IDLE) null else accent.copy(alpha = 0.45f),
+                accentEdge = accent,
             )
-            .accentEdge(accent)
             .clickable(onClick = onClick)
             .padding(start = 13.dp, end = 11.dp, top = 9.dp, bottom = 9.dp),
     ) {
