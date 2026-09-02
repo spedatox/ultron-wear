@@ -33,7 +33,18 @@ class AttendanceMessagingService : FirebaseMessagingService() {
                 // chat and needs current numbers).
                 SyncScheduler.syncNow(applicationContext)
             }
-            else -> Log.i(TAG, "Ignoring FCM message of type=${data["type"]}")
+            TYPE_NOTIFICATION -> {
+                // Igor's `notifications` skill. This branch was missing, so
+                // every such message fell through to `else` and was dropped —
+                // while FCM went on reporting "delivered", because delivery
+                // means FCM handed the payload over, not that anything was
+                // shown. Push looked healthy end to end and produced nothing.
+                MessageNotifier(applicationContext).show(
+                    title = data["title"].orEmpty(),
+                    body = data["body"].orEmpty(),
+                )
+            }
+            else -> Log.w(TAG, "No handler for FCM message type=${data["type"]}; dropped")
         }
     }
 
@@ -96,5 +107,6 @@ class AttendanceMessagingService : FirebaseMessagingService() {
         const val TAG = "UltronFcm"
         const val TYPE_ATTENDANCE_ASK = "attendance_ask"
         const val TYPE_SYNC_REQUEST = "sync_request"
+        const val TYPE_NOTIFICATION = "notification"
     }
 }
