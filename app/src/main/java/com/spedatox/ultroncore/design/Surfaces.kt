@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -48,23 +49,47 @@ val GlassRadiusSmall: Dp = 9.dp
 val GlassShape = RoundedCornerShape(GlassRadius)
 val GlassShapeSmall = RoundedCornerShape(GlassRadiusSmall)
 
+/** Width and inset of the left status bar drawn by [ultronGlass]'s `accentEdge`. */
+private val AccentEdgeWidth: Dp = 3.dp
+private val AccentEdgeInset: Dp = 9.dp
+
 /**
- * The one glass material. [active] brightens fill, tint and rim together, the
- * way the web's `.active` state does — never style one of the three alone.
+ * The one glass material — body, rim and left status bar in a single draw node.
+ *
+ * ── Why this is one modifier and not three ──────────────────────────────────
+ * Each `Modifier.drawWithCache` is its own node in the modifier chain: its own
+ * draw entry, its own cache, its own traversal on every frame. This used to be
+ * `.ultronGlass(...).accentEdge(...)`, which is two nodes on every card. Folding
+ * the accent bar in makes it one, and in a list where five cards are on screen
+ * during a fling that is five fewer draw nodes walked per frame.
+ *
+ * ── Why the body is one rect and not two ────────────────────────────────────
+ * `glassFill` and `glassTint` are both translucent and both land on the same
+ * opaque black ground, so `tint.compositeOver(fill)` is *exactly* the colour the
+ * two stacked draws produced — same pixels, half the fill rate. On a 450×450
+ * OLED driven by a Mali-G68 MP2 the card body is the largest single blit in the
+ * frame, so halving it is the cheapest real win available here. The composite is
+ * done inside `drawWithCache`, so it is computed once per size change and never
+ * per frame.
  *
  * @param accentRim when non-null, the rim is drawn in this colour instead of the
  *   palette edge. Used to let a card's status (now / next / at-risk) read from
  *   the rim without adding a second border layer.
+ * @param accentEdge when non-null, draws the left status bar — the web's
+ *   `border-left` accent — in this colour.
  */
 fun Modifier.ultronGlass(
     palette: UltronPalette,
     radius: Dp = GlassRadius,
     active: Boolean = false,
     accentRim: Color? = null,
+    accentEdge: Color? = null,
 ): Modifier = this.drawWithCache {
     val r = CornerRadius(radius.toPx(), radius.toPx())
     val fill = if (active) palette.glassMenu else palette.glassFill
     val tint = if (active) palette.glassTintHi else palette.glassTint
+    // Pixel-identical to drawing `fill` then `tint`; see the note above.
+    val body = tint.compositeOver(fill)
     val rim = accentRim ?: if (active) palette.edgeBright else palette.edge
     val rimStroke = Stroke(width = 1.dp.toPx())
     // Inset the rim by half a stroke so the 1px line lands inside the bounds
@@ -73,9 +98,13 @@ fun Modifier.ultronGlass(
     val rimSize = Size(size.width - rimStroke.width, size.height - rimStroke.width)
     val rimRadius = CornerRadius(radius.toPx() - half, radius.toPx() - half)
 
+    val edgeW = AccentEdgeWidth.toPx()
+    val edgeInset = AccentEdgeInset.toPx()
+    val edgeRadius = CornerRadius(edgeW / 2f, edgeW / 2f)
+    val edgeSize = Size(edgeW, (size.height - edgeInset * 2f).coerceAtLeast(0f))
+
     onDrawBehind {
-        drawRoundRect(color = fill, cornerRadius = r)
-        drawRoundRect(color = tint, cornerRadius = r)
+        drawRoundRect(color = body, cornerRadius = r)
         drawRoundRect(
             color = rim,
             topLeft = Offset(half, half),
@@ -83,29 +112,14 @@ fun Modifier.ultronGlass(
             cornerRadius = rimRadius,
             style = rimStroke,
         )
-    }
-}
-
-/**
- * The left status bar on a schedule card — the web's `border-left` accent.
- * Drawn into the card's own layer rather than as a child Box, so it costs zero
- * layout nodes and zero measure passes in a list of 13 cards.
- */
-fun Modifier.accentEdge(
-    color: Color,
-    width: Dp = 3.dp,
-    inset: Dp = 9.dp,
-): Modifier = this.drawWithCache {
-    val w = width.toPx()
-    val i = inset.toPx()
-    val r = CornerRadius(w / 2f, w / 2f)
-    onDrawBehind {
-        drawRoundRect(
-            color = color,
-            topLeft = Offset(0f, i),
-            size = Size(w, (size.height - i * 2f).coerceAtLeast(0f)),
-            cornerRadius = r,
-        )
+        if (accentEdge != null) {
+            drawRoundRect(
+                color = accentEdge,
+                topLeft = Offset(0f, edgeInset),
+                size = edgeSize,
+                cornerRadius = edgeRadius,
+            )
+        }
     }
 }
 

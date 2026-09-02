@@ -1,5 +1,7 @@
 package com.spedatox.ultroncore.presentation
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +27,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.Text
 import com.spedatox.ultroncore.R
 import com.spedatox.ultroncore.data.AttendanceRisk
@@ -35,7 +34,6 @@ import com.spedatox.ultroncore.data.AttendanceSummary
 import com.spedatox.ultroncore.design.GlassRadius
 import com.spedatox.ultroncore.design.UltronPalette
 import com.spedatox.ultroncore.design.UltronType
-import com.spedatox.ultroncore.design.accentEdge
 import com.spedatox.ultroncore.design.ultronGlass
 import com.spedatox.ultroncore.presentation.components.SectionLabel
 
@@ -46,11 +44,20 @@ import com.spedatox.ultroncore.presentation.components.SectionLabel
  * Sorted by risk, not alphabetically. The course about to fail you belongs at
  * the top of a screen you glance at, and a screen you have to scroll to find bad
  * news on is a screen that delivers bad news late.
+ *
+ * Flat [LazyColumn] rather than a ScalingLazyColumn, for the reasons spelled out
+ * on [ScheduleScreen]. The list state is hoisted so `ScreenScaffold` can drive
+ * rotary input and the scroll indicator from it — it used to be created in here,
+ * where the scaffold could not see it, which meant the bezel scrolled nothing on
+ * this screen at all.
  */
 @Composable
-fun AttendanceScreen(vm: UltronViewModel, palette: UltronPalette) {
+fun AttendanceScreen(
+    vm: UltronViewModel,
+    palette: UltronPalette,
+    listState: LazyListState,
+) {
     val summaries by vm.summaries.collectAsStateWithLifecycle()
-    val listState = rememberScalingLazyListState()
 
     if (summaries.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -67,10 +74,10 @@ fun AttendanceScreen(vm: UltronViewModel, palette: UltronPalette) {
         compareBy({ RISK_ORDER.indexOf(it.risk) }, { it.remainingAbsences })
     )
 
-    ScalingLazyColumn(
+    LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 28.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         item(key = "title") {
@@ -101,8 +108,12 @@ private fun AttendanceCard(summary: AttendanceSummary, palette: UltronPalette) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .ultronGlass(palette, radius = GlassRadius, accentRim = accent.copy(alpha = 0.4f))
-            .accentEdge(accent)
+            .ultronGlass(
+                palette = palette,
+                radius = GlassRadius,
+                accentRim = accent.copy(alpha = 0.4f),
+                accentEdge = accent,
+            )
             .padding(start = 13.dp, end = 11.dp, top = 9.dp, bottom = 9.dp),
     ) {
         Column(Modifier.fillMaxWidth()) {

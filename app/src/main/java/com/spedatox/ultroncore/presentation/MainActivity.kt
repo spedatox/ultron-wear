@@ -11,18 +11,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
@@ -55,10 +53,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             UltronTheme {
                 CompositionLocalProvider(LocalUltronPalette provides palette) {
-                    // The root fill is drawn once here rather than by each
-                    // screen, so switching destinations never repaints a
-                    // full-screen background.
-                    Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    // No background modifier here on purpose. The window theme
+                    // already paints black (`android:windowBackground`), so a
+                    // black Box on top of it was a second full-screen opaque
+                    // blit on every single frame — pure overdraw for zero
+                    // pixels of difference. See res/values/themes.xml.
+                    Box(Modifier.fillMaxSize()) {
                         UltronWearApp()
                     }
                 }
@@ -92,7 +92,10 @@ private fun UltronWearApp() {
 
     // Hoisted so returning to the schedule restores the scroll position instead
     // of snapping to the top.
-    val scheduleListState = rememberScalingLazyListState()
+    val scheduleListState = rememberLazyListState()
+    // Hoisted for the same reason, and so ScreenScaffold below can wire rotary
+    // input and the scroll indicator to it.
+    val attendanceListState = rememberLazyListState()
 
     AppScaffold {
         SwipeDismissableNavHost(
@@ -111,8 +114,12 @@ private fun UltronWearApp() {
                 }
             }
             composable(ROUTE_ATTENDANCE) {
-                ScreenScaffold {
-                    AttendanceScreen(vm = vm, palette = palette)
+                ScreenScaffold(scrollState = attendanceListState) {
+                    AttendanceScreen(
+                        vm = vm,
+                        palette = palette,
+                        listState = attendanceListState,
+                    )
                 }
             }
         }
