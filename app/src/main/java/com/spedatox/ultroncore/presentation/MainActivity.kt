@@ -5,6 +5,7 @@
 package com.spedatox.ultroncore.presentation
 
 import android.Manifest
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -122,7 +123,9 @@ private fun UltronWearApp(startOnAttendance: Boolean) {
                         vm = vm,
                         palette = palette,
                         listState = scheduleListState,
-                        onCourseClick = { navController.navigate(ROUTE_ATTENDANCE) },
+                        onCourseClick = { courseId ->
+                            navController.navigate("$ROUTE_COURSE/${Uri.encode(courseId)}")
+                        },
                         onAttendanceClick = { navController.navigate(ROUTE_ATTENDANCE) },
                     )
                 }
@@ -136,9 +139,19 @@ private fun UltronWearApp(startOnAttendance: Boolean) {
                     )
                 }
             }
+            composable("$ROUTE_COURSE/{courseId}") { entry ->
+                ScreenScaffold {
+                    CourseDetailScreen(
+                        courseId = entry.arguments?.getString("courseId").orEmpty(),
+                        vm = vm,
+                        palette = palette,
+                    )
+                }
+            }
         }
     }
 }
 
 private const val ROUTE_SCHEDULE = "schedule"
 private const val ROUTE_ATTENDANCE = "attendance"
+private const val ROUTE_COURSE = "course"

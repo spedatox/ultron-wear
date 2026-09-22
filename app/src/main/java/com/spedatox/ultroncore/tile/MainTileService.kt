@@ -100,9 +100,14 @@ class MainTileService : TileService() {
     }
 
     private fun createFullScreenTile(): LayoutElementBuilders.LayoutElement {
-        val today = LocalDate.now().dayOfWeek
+        val date = LocalDate.now()
+        val today = date.dayOfWeek
         val now = LocalTime.now()
+        // A cached weekly timetable can already contain classes while the term
+        // itself is still in the future. Do not present one of those classes as
+        // "next" before week one has begun.
         val nextCourse = schedule.upcoming(today, now)
+            .takeIf { !date.isBefore(schedule.term.value.start) }
         val currentCourse = schedule.current(today, now)
 
         val clickable = ModifiersBuilders.Clickable.Builder()
